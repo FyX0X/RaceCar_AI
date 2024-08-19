@@ -12,23 +12,24 @@ class Car:
         self.vel = np.zeros(2)
         self.acceleration = np.zeros(2)
         self.speed = 0
-        self.direction_vector = np.array([1, 0])
-        self.rotation = 0
-
         self.reverse = False
+        self.direction_vector = np.array([1, 0])
+        self.rotation = self.get_rotation()
+        self.angular_velocity = 0
 
         self.engine_max_force = 200  # change value later
         self.drag_coefficient = 0.005
         self.friction_coefficient = self.drag_coefficient * 30
         self.engine_braking = 0.5
         self.mass = 0.5
+        self.length = 0.5
 
         self.img = img
         self.img_rect = None
         self.rotated_img = None
 
         self.throttle = 0       # accelerating from -1 to 1
-        self.steering = 0       # turning from -1 to 1
+        self.steering_angle = 0       # turning from -40 to 40
 
         self.delta_time = 0
 
@@ -40,12 +41,25 @@ class Car:
         win.blit(self.rotated_img, self.img_rect)     # draw car
 
     def move(self, throttle, steering, delta_time, tick):
-        self.throttle = throttle
-        self.steering = steering
+        self.throttle = abs(throttle)
+        self.steering_angle = math.radians(steering * 40)         # max angle = (1 * 40)°
 
         self.delta_time = delta_time
 
-        # calculate acceleration
+        # calculate rotation before moving car
+        if steering != 0:
+            radius = self.get_curve_radius()
+            self.angular_velocity = self.get_angular_vel(radius)
+
+            # change orientation:
+            self.rotation += self.angular_velocity * delta_time
+            # update direction vector
+            self.direction_vector = self.get_direction_vector_from_rotation()
+            if self.reverse:
+                self.direction_vector *= -1
+            self.vel = self.direction_vector * self.speed
+
+        # calculate acceleration (velocity and position calculated automatically in the functions)
         if self.speed != 0:
             if not self.reverse:
                 if throttle > 0:
@@ -61,12 +75,13 @@ class Car:
             if throttle > 0:
                 self.accelerating()
             elif throttle < 0:
+                print(f"{tick}: flip")
                 self.reverse = True
-                self.accelerating()
-
+                self.direction_vector *= -1
+                self.accelerating()         # change with new, backward()
 
         self.update()
-        print(f"{tick}: vel= {self.vel}, reverse= {self.reverse}")
+        print(f"{tick}: vel= {self.vel}, dir_v= {self.direction_vector}, angle: {self.rotation}, reverse= {self.reverse}")
 
         """
         # calculate velocity
@@ -75,9 +90,36 @@ class Car:
         self.update_pos()
         """
 
+    def get_angular_vel(self, curve_radius, speed=None):
+        if speed is None:
+            speed = self.get_speed()
+        if curve_radius is None:
+            return 0
+        else:
+            return speed/curve_radius
+
+    def get_curve_radius(self, steering_angle=None):
+        if steering_angle is None:
+            steering_angle = self.steering_angle
+        if steering_angle != 0:
+            return self.length / math.sin(steering_angle)
+        else:
+            return None
+
+    def get_direction_vector_from_rotation(self, rotation=None):
+        if rotation is None:
+            rad_rotation = math.radians(self.rotation)
+        else:
+            rad_rotation = math.radians(rotation)
+        direction_vector = np.zeros(2)
+        direction_vector[0] = math.cos(rad_rotation)
+        direction_vector[1] = -math.sin(rad_rotation)
+
+        return direction_vector
+
     def update(self):
-        self.direction_vector = self.get_direction_vector()
         self.speed = self.get_speed()
+        self.direction_vector = self.get_direction_vector()
         self.rotation = self.get_rotation()
 
     def get_direction_vector(self, velocity=None):
@@ -89,8 +131,17 @@ class Car:
         else:
             return self.direction_vector
 
-    def get_rotation(self):
-        return math.degrees(math.atan2(self.direction_vector[0], -self.direction_vector[1])) - 90
+    def get_rotation(self, direction_vector=None, reverse=None):      # rotation from direction vector
+        if direction_vector is None:
+            direction_vector = self.get_direction_vector()
+        if reverse is None:
+            reverse = self.reverse
+        if reverse:
+            angle = math.degrees(math.atan2(direction_vector[0], direction_vector[1])) + 90
+        else:
+            angle = math.degrees(math.atan2(direction_vector[0], direction_vector[1])) - 90
+        # print(f"dir_v: {direction_vector}, angle: {angle}       (with reverse = {reverse})")
+        return angle
 
     def get_speed(self, velocity=None):
         if velocity is None:
@@ -98,6 +149,7 @@ class Car:
         return math.sqrt(velocity[0] ** 2 + velocity[1] ** 2)  # scalar speed
 
     def accelerating(self):
+        print("accelerating")
         traction_force = self.engine_max_force * self.throttle * self.direction_vector
         friction_force = -self.friction_coefficient * self.vel
         drag_force = -self.drag_coefficient * self.vel * self.speed
@@ -114,7 +166,8 @@ class Car:
         # self.update_vel(acceleration)
 
     def braking(self):
-        braking_force = self.engine_max_force * self.throttle * self.direction_vector   # throttle < 0: opposes motion
+        print("braking")
+        braking_force = - self.engine_max_force * self.throttle * self.direction_vector   # -throttle < 0
         friction_force = -self.friction_coefficient * self.vel
         drag_force = -self.drag_coefficient * self.vel * self.speed
         engine_braking_force = - self.engine_braking * self.direction_vector
@@ -125,7 +178,8 @@ class Car:
         # check if going to flip direction and updates vel
         new_vel = self.vel + self.acceleration * self.delta_time
         new_direction = self.get_direction_vector(new_vel)
-        if (new_direction == -1 * self.direction_vector).all():     # direction has been reversed
+
+        if np.isclose(new_direction, -self.direction_vector).all():     # direction has been reversed
             self.stop()
         else:                                               # direction has not been reversed
             self.vel = new_vel
@@ -143,7 +197,9 @@ class Car:
         self.pos += self.vel * self.delta_time
 
     def stop(self):
+        print("stop")
         self.vel = np.zeros(2)              # set velocity to 0
         if self.reverse:                    # if reversed:
-            self.direction_vector *= 1      # -> flips direction vector
+            print("reverse => flip")
+            self.direction_vector *= -1      # -> flips direction vector
         self.reverse = False                # set reverse to false

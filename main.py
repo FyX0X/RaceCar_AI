@@ -9,11 +9,12 @@ import car_class
 pygame.init()
 
 WIN_WIDTH, WIN_HEIGHT = 600, 600
-FPS = 30
+MAX_FPS = 30
 
 RACE_TRACK_IMG = pygame.image.load(os.path.join("imgs", "race_track.png"))
 CAR_IMG = pygame.transform.scale_by(pygame.image.load(os.path.join("imgs", "red_car.png")), 0.8)
 
+TEXT_FONT = pygame.font.SysFont("comicsan", 20)
 
 class Old_Car:
     IMG = CAR_IMG
@@ -137,7 +138,7 @@ class Old_Car:
                 self.vel = new_velocity
 
 
-    def move(self, throttle: float = 0, turn: float = 0, delta_time: float = 1 / FPS, tick=-1):
+    def move(self, throttle: float = 0, turn: float = 0, delta_time: float = 1 / MAX_FPS, tick=-1):
         # update all variables
         self.update()
 
@@ -179,10 +180,13 @@ class Old_Car:
         win.blit(self.rotated_img, self.img_rect)
 
 
-def draw_window(win, car):
-    win.blit(RACE_TRACK_IMG, (0, 0))
+def draw_window(win, car, fps):
+    win.blit(RACE_TRACK_IMG, (0, 0))        # draw background
 
-    car.draw(win)
+    car.draw(win)     # draw car
+
+    fps_text = TEXT_FONT.render(f"FPS: {round(fps)}", 1, (255, 255, 255))
+    win.blit(fps_text, (WIN_WIDTH - fps_text.get_width() - 10, 10))
 
     pygame.display.update()
 
@@ -194,10 +198,15 @@ def main():
 
     car = car_class.Car((100, 100), CAR_IMG)
 
+    for i in range(8):
+        vector = np.around(car.get_direction_vector_from_rotation(i*45), 2)
+
+        print(f"angle: {i*45} => vector: {vector}")
+
     run = True
     while run:
         # 30 FPS
-        delta_time = clock.tick(FPS)/1000
+        delta_time = clock.tick(MAX_FPS) / 1000
 
         # Check user input
         for event in pygame.event.get():
@@ -205,16 +214,21 @@ def main():
                 run = False
                 pygame.quit()
                 quit()
-        if keyboard.is_pressed("z"):
+        throttle = 0
+        steering = 0
+        if keyboard.is_pressed("z") and not keyboard.is_pressed("s"):
             throttle = 1
-        elif keyboard.is_pressed("s"):
+        elif keyboard.is_pressed("s") and not keyboard.is_pressed("z"):
             throttle = -1
-        else:
-            throttle = 0
-        car.move(throttle, 0, delta_time, pygame.time.get_ticks())
+        if keyboard.is_pressed("q") and not keyboard.is_pressed("d"):
+            steering = 1
+        elif keyboard.is_pressed("d") and not keyboard.is_pressed("q"):
+            steering = -1
+
+        car.move(throttle, steering, delta_time, pygame.time.get_ticks())
 
         # draw window
-        draw_window(win, car)
+        draw_window(win, car, clock.get_fps())
 
 
 main()
