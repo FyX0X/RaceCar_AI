@@ -25,13 +25,15 @@ class Car:
         self.length = 0.5
 
         self.img = img
-        self.img_rect = None
-        self.rotated_img = None
+        self.rotated_img = pygame.transform.rotate(self.img, self.rotation)
+        self.img_rect = self.rotated_img.get_rect(center=self.pos)          # set coordinate origin in center
 
         self.throttle = 0       # accelerating from -1 to 1
         self.steering_angle = 0       # turning from -40 to 40
 
         self.delta_time = 0
+
+        self.is_dead = False
 
     def draw(self, win):
         # Rotate car
@@ -39,6 +41,9 @@ class Car:
         self.img_rect = self.rotated_img.get_rect(center=self.pos)          # set coordinate origin in center
 
         win.blit(self.rotated_img, self.img_rect)     # draw car
+
+    def get_mask(self):
+        return pygame.mask.from_surface(self.rotated_img)
 
     def move(self, throttle, steering, delta_time, tick):
         self.throttle = abs(throttle)
