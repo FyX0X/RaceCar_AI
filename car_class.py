@@ -13,7 +13,7 @@ class Car:
         self.acceleration = np.zeros(2)
         self.speed = 0
         self.reverse = False
-        self.direction_vector = np.array([1, 0])
+        self.direction_vector = np.array([-1, 0])
         self.rotation = self.get_rotation()
         self.angular_velocity = 0
 
@@ -42,8 +42,9 @@ class Car:
 
     def move(self, throttle, steering, delta_time, tick):
         self.throttle = abs(throttle)
-        self.steering_angle = math.radians(steering * 40)         # max angle = (1 * 40)°
-
+        max_steering_angle = self.get_max_steering_angle()                 # max angle decreases with speed
+        self.steering_angle = math.radians(steering * max_steering_angle)   # max angle = (1 * 60)° if speed is low
+        print(max_steering_angle)
         self.delta_time = delta_time
 
         # calculate rotation before moving car
@@ -52,7 +53,10 @@ class Car:
             self.angular_velocity = self.get_angular_vel(radius)
 
             # change orientation:
-            self.rotation += self.angular_velocity * delta_time
+            if self.reverse:
+                self.rotation -= self.angular_velocity * delta_time
+            else:
+                self.rotation += self.angular_velocity * delta_time
             # update direction vector
             self.direction_vector = self.get_direction_vector_from_rotation()
             if self.reverse:
@@ -89,6 +93,11 @@ class Car:
         # calculate position
         self.update_pos()
         """
+
+    def get_max_steering_angle(self, speed=None):
+        if speed is None:
+            speed = self.speed
+        return max(80 - 4 * math.sqrt(self.speed), 20)  # max angle decreases with speed
 
     def get_angular_vel(self, curve_radius, speed=None):
         if speed is None:

@@ -188,6 +188,9 @@ def draw_window(win, car, fps):
     fps_text = TEXT_FONT.render(f"FPS: {round(fps)}", 1, (255, 255, 255))
     win.blit(fps_text, (WIN_WIDTH - fps_text.get_width() - 10, 10))
 
+    mouse_pos_text = TEXT_FONT.render(f"mouse pos: {pygame.mouse.get_pos()}", 1, (255, 255, 255))
+    win.blit(mouse_pos_text, (WIN_WIDTH - mouse_pos_text.get_width() - 10, WIN_HEIGHT - mouse_pos_text.get_height() - 10))
+
     pygame.display.update()
 
 
@@ -196,7 +199,7 @@ def main():
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
     clock = pygame.time.Clock()
 
-    car = car_class.Car((100, 100), CAR_IMG)
+    car = car_class.Car((374, 55), CAR_IMG)
 
     for i in range(8):
         vector = np.around(car.get_direction_vector_from_rotation(i*45), 2)
