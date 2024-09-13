@@ -17,7 +17,7 @@ CAR_IMG = pygame.transform.scale_by(pygame.image.load(os.path.join("imgs", "red_
 
 TEXT_FONT = pygame.font.SysFont("comicsan", 20)
 
-# green color = rgba(34,177,76,255)
+    # green color = rgba(34,177,76,255)
 
 
 def draw_window(win, car, track, fps):
@@ -47,13 +47,13 @@ def draw_window(win, car, track, fps):
         win.blit(game_over_screen, (0, 0))
     pygame.display.update()
 
-
+# changement
 def main():
     # initiate pygame window
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
     clock = pygame.time.Clock()
 
-    track = race_track.RaceTrack(RACE_TRACK_IMG, (374, 55), (34, 177, 76), (WIN_WIDTH, WIN_HEIGHT))
+    track = race_track.RaceTrack(os.path.join("imgs", "race_track.png"),(34, 177, 76),  (WIN_WIDTH, WIN_HEIGHT))
     car = car_class.Car(track.start_pos, CAR_IMG)
 
     for i in range(8):
@@ -64,7 +64,7 @@ def main():
     run = True
     while run:
         # 30 FPS
-        delta_time = clock.tick(MAX_FPS) / 1000
+        delta_time = clock.tick(MAX_FPS*10) / 1000
 
         # Check user input
         for event in pygame.event.get():
@@ -75,6 +75,7 @@ def main():
         throttle = 0
         steering = 0
         show_mask = False
+        track.show_checkpoints = False
         if keyboard.is_pressed("z") and not keyboard.is_pressed("s"):
             throttle = 1
         elif keyboard.is_pressed("s") and not keyboard.is_pressed("z"):
@@ -88,6 +89,8 @@ def main():
         """
         if keyboard.is_pressed("m"):
             show_mask = True"""
+        if keyboard.is_pressed("p"):
+            track.show_checkpoints = True
 
         if not car.is_dead:
             car.move(throttle, steering, delta_time, pygame.time.get_ticks())
