@@ -35,6 +35,12 @@ class Car:
 
         self.is_dead = False
 
+        self.distance = 0
+        self.timer = 0
+
+    def update_timer(self):
+        self.timer = pygame.time.get_ticks()
+
     def draw(self, win):
         # Rotate car
         self.rotated_img = pygame.transform.rotate(self.img, self.rotation)

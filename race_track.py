@@ -1,4 +1,5 @@
 import math
+import time
 
 import pygame
 import numpy as np
@@ -52,6 +53,7 @@ class RaceTrack:
         with open(file_path, "rb") as file:
             track_file = pickle.load(file)
         track = RaceTrack(track_file.img_path, track_file.bg_color, track_file.size, track_file.checkpoints)
+        track.start_pos = track_file.checkpoints[0].pos
         return track
 
     def save_track(self, file_path):
@@ -73,11 +75,19 @@ class RaceTrack:
         track_mask = pygame.mask.from_surface(self.img)
         track_mask.invert()
 
+        car_x, car_y = car.pos
+        for cp in self.checkpoints:
+            cp_x, cp_y = cp.pos
+            dist_with_cp = math.sqrt((car_x-cp_x)**2 + (car_y-cp_y)**2)
+            if dist_with_cp <= cp.radius and cp.id - car.distance == 1:
+                # car.distance = max(car.distance, cp.id)         # only one lap
+                car.distance += 1                                 # multiple laps
+
         x, y, w, h = car.img_rect
         overlap_point = track_mask.overlap(car_mask, (x, y))
 
-        #track_mask.draw(car_mask, (x, y))
-        #mask_img = track_mask.to_surface()
+        # track_mask.draw(car_mask, (x, y))
+        # mask_img = track_mask.to_surface()
         if overlap_point:
             return True
         return False
@@ -85,15 +95,38 @@ class RaceTrack:
 
 class TrackMaker:
 
-    def __init__(self, path_to_image, size, start_pos=(0, 0), color=(34,177,76,255)):
-        img = pygame.image.load(path_to_image)
-        self.track = RaceTrack(img, start_pos, color, size)
+    def __init__(self, path_to_image, _size, _start_pos=(0, 0), color=(34,177,76,255)):
+
+        # img = pygame.image.load(path_to_image)
+        self.track = RaceTrack(path_to_image, color, _size)
         self.track.show_checkpoints = True
         self.cp_number = 0
 
         self.pos1 = None
         self.pos2 = None
 
+    def do_all_checkpoint(self, pos, radius, first=False):
+        print("check pos for new CP")
+        working_cp = True
+        x, y = pos
+
+        # place first CP
+        if first:
+            self.track.checkpoints.append(CheckPoint((x, y), radius, 0))
+
+        _id = len(self.track.checkpoints)
+        old_x, old_y = self.track.checkpoints[_id-1].pos
+        print("last CP pos: ", old_x, old_y)
+        print("mouse pos: ", x, y)
+
+
+        # calculate distance with last CP
+        dist = math.sqrt((x-old_x)**2 + (y-old_y)**2)
+        if dist >= 5:
+            self.track.checkpoints.append(CheckPoint((x, y), radius, _id))
+            print("checkpoint placed")
+
+    """
     def new_cp_click(self, pos):
         if self.pos1 is None:
             self.pos1 = pos
@@ -101,8 +134,9 @@ class TrackMaker:
             self.pos2 = pos
             self.new_checkpoint()
             self.pos1 = None
-            self.pos2 = None
+            self.pos2 = None"""
 
+    """
     def new_checkpoint(self):
         x1, y1 = self.pos1
         x2, y2 = self.pos2
@@ -110,13 +144,16 @@ class TrackMaker:
         diameter = math.sqrt((x2-x1)**2 + (y2-y1)**2)
         id = len(self.track.checkpoints)
         self.track.checkpoints.append(CheckPoint(center_pos, diameter/2, id))
-        print("checkpoint placed")
+        print("checkpoint placed")"""
 
     def finish(self, file_path):
         print("stop recording checkpoints")
 
+        # creating "pickle-able" object
+        track_file = TrackFile(self.track.checkpoints, self.track.bg_color, self.track.size, self.track.img_path)
+
         with open(file_path, "wb") as file:
-            pickle.dump(self.track, file)
+            pickle.dump(track_file, file)
             print("track saved in: ", file_path)
 
     def draw(self, win):
@@ -143,8 +180,10 @@ if __name__ == "__main__":
     win = pygame.display.set_mode(size)
     pygame.display.set_caption("Track Maker")
 
-
-    creating_cp = True
+    #creating_cp = True
+    already_started = False
+    done = False
+    current_cp_radius = 25
 
     track_maker = TrackMaker(TRACK_IMG_PATH, size, start_pos)
     print("track object initiated")
@@ -152,11 +191,31 @@ if __name__ == "__main__":
 
     run = True
     while run:
+        # do all cp if already started:
+        if already_started and not done:
+            track_maker.do_all_checkpoint(pygame.mouse.get_pos(), current_cp_radius)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
                 pygame.quit()
                 quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_p or already_started:
+                    if not already_started:
+                        track_maker.do_all_checkpoint(pygame.mouse.get_pos(), current_cp_radius, True)
+                        already_started = True
+
+                if event.key == pygame.K_UP:
+                    current_cp_radius += 5
+                if event.key == pygame.K_DOWN:
+                    current_cp_radius -= 5
+
+                if event.key == pygame.K_ESCAPE:
+                    if pygame.time.get_ticks() - escape_time <= max_time_delay_for_escape:
+                        done = True
+                        track_maker.finish(path_to_track)
+                    escape_time = pygame.time.get_ticks()
+            """
             if creating_cp and event.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
                 track_maker.new_cp_click(pos)
@@ -165,6 +224,6 @@ if __name__ == "__main__":
                     if pygame.time.get_ticks() - escape_time <= max_time_delay_for_escape:
                         creating_cp = False
                         track_maker.finish(path_to_track)
-                    escape_time = pygame.time.get_ticks()
+                    escape_time = pygame.time.get_ticks()"""
 
         draw_window(win, track_maker)

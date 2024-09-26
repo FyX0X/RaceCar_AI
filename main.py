@@ -6,6 +6,9 @@ import math
 import keyboard
 import car_class
 import race_track
+from race_track import TrackFile
+from race_track import CheckPoint
+
 
 pygame.init()
 
@@ -20,7 +23,7 @@ TEXT_FONT = pygame.font.SysFont("comicsan", 20)
     # green color = rgba(34,177,76,255)
 
 
-def draw_window(win, car, track, fps):
+def draw_window(win, car, track, fps, show_mask=False):
     track.draw(win)        # draw background
 
     car.draw(win)     # draw car
@@ -30,10 +33,21 @@ def draw_window(win, car, track, fps):
 
     mouse_pos_text = TEXT_FONT.render(f"mouse pos: {pygame.mouse.get_pos()}", 1, (255, 255, 255))
     win.blit(mouse_pos_text, (WIN_WIDTH - mouse_pos_text.get_width() - 10, WIN_HEIGHT - mouse_pos_text.get_height() - 10))
-    """
-    if show_masks:
-        mask_img = track.collide(car)
-        win.blit(mask_img, (0, 0))"""
+
+    distance_text = TEXT_FONT.render(f"Distance: {car.distance}", 1, (255, 255, 255))
+    win.blit(distance_text, (10, 10))
+    timer_text = TEXT_FONT.render(f"Time: {round(car.timer/1000, 2)}", 1, (255, 255, 255))
+    win.blit(timer_text, (10, 25))
+
+    if show_mask:
+        car_mask = car.get_mask()
+        track_mask = pygame.mask.from_surface(track.img)
+        track_mask.invert()
+        x, y, w, h = car.img_rect
+        track_mask.draw(car_mask, (x, y))
+        mask_img = track_mask.to_surface()
+        win.blit(mask_img, (0, 0))
+
     if car.is_dead:
         die_text = TEXT_FONT.render("You died", 1, (255, 255, 255))
         win.blit(die_text, (WIN_WIDTH / 2 - die_text.get_width() / 2, WIN_HEIGHT / 2 - die_text.get_height()))
@@ -47,13 +61,15 @@ def draw_window(win, car, track, fps):
         win.blit(game_over_screen, (0, 0))
     pygame.display.update()
 
+
 # changement
 def main():
     # initiate pygame window
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
     clock = pygame.time.Clock()
 
-    track = race_track.RaceTrack(os.path.join("imgs", "race_track.png"),(34, 177, 76),  (WIN_WIDTH, WIN_HEIGHT))
+    #track = race_track.RaceTrack(os.path.join("imgs", "race_track.png"),(34, 177, 76),  (WIN_WIDTH, WIN_HEIGHT))
+    track = race_track.RaceTrack.load_from_track_file(os.path.join("track_1.pickle"))
     car = car_class.Car(track.start_pos, CAR_IMG)
 
     for i in range(8):
@@ -86,9 +102,9 @@ def main():
             steering = -1
         if car.is_dead and keyboard.is_pressed("enter"):
             car = car_class.Car(track.start_pos, CAR_IMG)
-        """
+
         if keyboard.is_pressed("m"):
-            show_mask = True"""
+            show_mask = True
         if keyboard.is_pressed("p"):
             track.show_checkpoints = True
 
@@ -98,8 +114,9 @@ def main():
         if track.collide(car):
             car.is_dead = True
 
+        car.update_timer()
         # draw window
-        draw_window(win, car, track, clock.get_fps())
+        draw_window(win, car, track, clock.get_fps(), show_mask)
 
 
 main()
