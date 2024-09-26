@@ -35,6 +35,7 @@ class TrackFile:
 
 
 class RaceTrack:
+    NUMBER_OF_WINNING_LAP = 1
 
     def __init__(self, img_path, bg_color, size, cp_list=[]):
         self.checkpoints = cp_list
@@ -76,12 +77,30 @@ class RaceTrack:
         track_mask.invert()
 
         car_x, car_y = car.pos
+
+        cp_nb = car.distance%len(self.checkpoints)
+        next_cp = self.checkpoints[cp_nb]
+        cp_x, cp_y = next_cp.pos
+        dist_with_cp = math.sqrt((car_x - cp_x) ** 2 + (car_y - cp_y) ** 2)
+        if dist_with_cp <= next_cp.radius:
+            car.distance += 1
+            if cp_nb == 0:
+                car.lap += 1
+                if car.lap > self.NUMBER_OF_WINNING_LAP:
+                    car.won = True
+
+        """
         for cp in self.checkpoints:
             cp_x, cp_y = cp.pos
             dist_with_cp = math.sqrt((car_x-cp_x)**2 + (car_y-cp_y)**2)
-            if dist_with_cp <= cp.radius and cp.id - car.distance == 1:
-                # car.distance = max(car.distance, cp.id)         # only one lap
-                car.distance += 1                                 # multiple laps
+            if dist_with_cp <= cp.radius and cp.id + car.lap*len(self.checkpoints) - car.distance == 1:
+                car.distance += 1
+                if car.distance == len(self.checkpoints):
+                    car.lap += 1
+                if car.distance >= len(self.checkpoints)*self.NUMBER_OF_WINNING_LAP:
+
+                    car.won = True"""
+
 
         x, y, w, h = car.img_rect
         overlap_point = track_mask.overlap(car_mask, (x, y))

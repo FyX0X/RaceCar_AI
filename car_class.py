@@ -36,10 +36,14 @@ class Car:
         self.is_dead = False
 
         self.distance = 0
+        self.lap = 0
         self.timer = 0
+        self.born_time = pygame.time.get_ticks()
+        self.won = False
 
     def update_timer(self):
-        self.timer = pygame.time.get_ticks()
+        if not self.won and not self.is_dead:
+            self.timer = pygame.time.get_ticks() - self.born_time
 
     def draw(self, win):
         # Rotate car

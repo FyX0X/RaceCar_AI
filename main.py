@@ -38,6 +38,8 @@ def draw_window(win, car, track, fps, show_mask=False):
     win.blit(distance_text, (10, 10))
     timer_text = TEXT_FONT.render(f"Time: {round(car.timer/1000, 2)}", 1, (255, 255, 255))
     win.blit(timer_text, (10, 25))
+    lap_text = TEXT_FONT.render(f"Lap: {car.lap}", 1, (255, 255, 255))
+    win.blit(lap_text, (10, 40))
 
     if show_mask:
         car_mask = car.get_mask()
@@ -59,6 +61,18 @@ def draw_window(win, car, track, fps, show_mask=False):
         game_over_screen.fill((0, 0, 0))
         game_over_screen.set_alpha(160)
         win.blit(game_over_screen, (0, 0))
+
+    if car.won:
+        won_text = TEXT_FONT.render("You won", 1, (255, 255, 255))
+        win.blit(won_text, (WIN_WIDTH / 2 - won_text.get_width() / 2, WIN_HEIGHT / 2 - won_text.get_height()))
+
+        won_text = TEXT_FONT.render("Press enter to play again", 1, (255, 255, 255))
+        win.blit(won_text, (WIN_WIDTH / 2 - won_text.get_width() / 2, WIN_HEIGHT / 2))
+
+        won_screen = pygame.Surface((WIN_WIDTH, WIN_HEIGHT))
+        won_screen.fill((0, 0, 0))
+        won_screen.set_alpha(160)
+        win.blit(won_screen, (0, 0))
     pygame.display.update()
 
 
@@ -102,13 +116,15 @@ def main():
             steering = -1
         if car.is_dead and keyboard.is_pressed("enter"):
             car = car_class.Car(track.start_pos, CAR_IMG)
+        if car.won and keyboard.is_pressed("enter"):
+            car = car_class.Car(track.start_pos, CAR_IMG)
 
         if keyboard.is_pressed("m"):
             show_mask = True
         if keyboard.is_pressed("p"):
             track.show_checkpoints = True
 
-        if not car.is_dead:
+        if not car.is_dead and not car.won:
             car.move(throttle, steering, delta_time, pygame.time.get_ticks())
 
         if track.collide(car):
