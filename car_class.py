@@ -5,9 +5,89 @@ import math
 # New python file, for new car physics
 
 
+class DetectingRay:
+
+    def __init__(self, delta_angle, length, track_mask):
+        self.delta_angle = delta_angle
+        self.length = length
+
+        self.car_pos = None
+        self.angle = None
+        # self.start_pos = (0, 0)
+        self.end_pos = None
+
+        # creates a surface, centered on car, to draw line on it
+        self.line_surface = pygame.Surface((2*length, 2*length))
+        self.line_surface = self.line_surface.convert_alpha()
+        self.line_surface.fill((0, 0, 0, 0))
+
+        self.track_mask = track_mask
+
+        self.measured_distance = 0
+        self.collision_pos = (0, 0)
+
+    def get_surface_coordinate(self, pos):
+        x, y = pos
+        _x = self.length + x
+        _y = self.length - y
+        _pos = (_x, _y)
+        return _pos
+
+    def update(self, car_pos, car_angle):
+        # update variables
+        self.car_pos = car_pos
+        self.angle = math.radians(car_angle) + self.delta_angle
+
+        # detects wall
+        self.detect_wall()
+
+        # calculate coord of line
+        x_end = math.cos(self.angle) * self.length
+        y_end = math.sin(self.angle) * self.length
+        self.end_pos = (x_end, y_end)
+
+        # clear line
+        self.line_surface.fill((0, 0, 0, 0))
+        # draw line on surface
+        pygame.draw.line(self.line_surface, (255, 255, 255),
+                         self.get_surface_coordinate((0, 0)),
+                         self.get_surface_coordinate(self.end_pos), 1)
+        # draw ree line for collision distance
+        pygame.draw.line(self.line_surface, (255, 0, 0),
+                         self.get_surface_coordinate((0, 0)),
+                         self.get_surface_coordinate(self.collision_pos), 2)
+
+    def detect_wall(self):
+
+        step_x = math.cos(self.angle)
+        step_y = - math.sin(self.angle)     # minus sign comes from pygame origin in top left and not bottom left
+
+
+        # resets vision
+        self.measured_distance = 1
+        self.collision_pos = (step_x * self.length, -step_y * self.length)
+
+        #check for actual collision
+        for i in range(self.length):
+            car_x, car_y = self.car_pos
+            x, y = step_x * i, step_y * i
+            result = self.track_mask.get_at((x + car_x, y + car_y))
+
+            if result:
+                self.measured_distance = i/self.length
+                self.collision_pos = (x, -y)
+                break
+                # make sure break happens BEFORE line is out of screen, or else game crashes
+                # entire track NEEDS to be surrounded by a bit of grass on all sides
+
+    def draw(self, win):
+        rect = self.line_surface.get_rect(center=self.car_pos)
+        win.blit(self.line_surface, rect)
+
+
 class Car:
 
-    def __init__(self, pos, img):
+    def __init__(self, pos, img, track_mask):
         self.pos = pos
         self.vel = np.zeros(2)
         self.acceleration = np.zeros(2)
@@ -41,6 +121,22 @@ class Car:
         self.born_time = pygame.time.get_ticks()
         self.won = False
 
+        self.rays = []
+        self.ray_init(track_mask)
+        self.show_rays = False
+
+    def ray_init(self, track_mask, nb_rays=5):
+
+        for i in range(nb_rays):
+            delta_angle = -math.pi/2 + i*math.pi/(nb_rays-1)
+            ray = DetectingRay(delta_angle, 250, track_mask)
+            self.rays.append(ray)
+
+    def update_car(self):
+        self.update_timer()
+        for ray in self.rays:
+            ray.update(self.pos, self.rotation)
+
     def update_timer(self):
         if not self.won and not self.is_dead:
             self.timer = pygame.time.get_ticks() - self.born_time
@@ -52,6 +148,10 @@ class Car:
 
         win.blit(self.rotated_img, self.img_rect)     # draw car
 
+        if self.show_rays:
+            for ray in self.rays:
+                ray.draw(win)
+
     def get_mask(self):
         return pygame.mask.from_surface(self.rotated_img)
 
@@ -59,7 +159,7 @@ class Car:
         self.throttle = abs(throttle)
         max_steering_angle = self.get_max_steering_angle()                 # max angle decreases with speed
         self.steering_angle = math.radians(steering * max_steering_angle)   # max angle = (1 * 60)° if speed is low
-        print(max_steering_angle)
+        # print(max_steering_angle)
         self.delta_time = delta_time
 
         # calculate rotation before moving car
@@ -99,7 +199,7 @@ class Car:
                 self.direction_vector *= -1
                 self.accelerating()         # change with new, backward()
 
-        self.update()
+        self.update_physics()
         print(f"{tick}: vel= {self.vel}, dir_v= {self.direction_vector}, angle: {self.rotation}, reverse= {self.reverse}")
 
         """
@@ -141,7 +241,7 @@ class Car:
 
         return direction_vector
 
-    def update(self):
+    def update_physics(self):
         self.speed = self.get_speed()
         self.direction_vector = self.get_direction_vector()
         self.rotation = self.get_rotation()

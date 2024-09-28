@@ -82,9 +82,9 @@ def main():
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
     clock = pygame.time.Clock()
 
-    #track = race_track.RaceTrack(os.path.join("imgs", "race_track.png"),(34, 177, 76),  (WIN_WIDTH, WIN_HEIGHT))
+    # track = race_track.RaceTrack(os.path.join("imgs", "race_track.png"),(34, 177, 76),  (WIN_WIDTH, WIN_HEIGHT))
     track = race_track.RaceTrack.load_from_track_file(os.path.join("track_1.pickle"))
-    car = car_class.Car(track.start_pos, CAR_IMG)
+    car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
 
     for i in range(8):
         vector = np.around(car.get_direction_vector_from_rotation(i*45), 2)
@@ -105,6 +105,7 @@ def main():
         throttle = 0
         steering = 0
         show_mask = False
+        car.show_rays = False
         track.show_checkpoints = False
         if keyboard.is_pressed("z") and not keyboard.is_pressed("s"):
             throttle = 1
@@ -115,14 +116,16 @@ def main():
         elif keyboard.is_pressed("d") and not keyboard.is_pressed("q"):
             steering = -1
         if car.is_dead and keyboard.is_pressed("enter"):
-            car = car_class.Car(track.start_pos, CAR_IMG)
+            car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
         if car.won and keyboard.is_pressed("enter"):
-            car = car_class.Car(track.start_pos, CAR_IMG)
+            car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
 
         if keyboard.is_pressed("m"):
             show_mask = True
         if keyboard.is_pressed("p"):
             track.show_checkpoints = True
+        if keyboard.is_pressed("o"):
+            car.show_rays = True
 
         if not car.is_dead and not car.won:
             car.move(throttle, steering, delta_time, pygame.time.get_ticks())
@@ -130,7 +133,7 @@ def main():
         if track.collide(car):
             car.is_dead = True
 
-        car.update_timer()
+        car.update_car()
         # draw window
         draw_window(win, car, track, clock.get_fps(), show_mask)
 

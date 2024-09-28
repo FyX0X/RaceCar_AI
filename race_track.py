@@ -12,10 +12,10 @@ TRACK_IMG_PATH = os.path.join("imgs", "race_track.png")
 
 class CheckPoint:
 
-    def __init__(self, pos, radius, id):
+    def __init__(self, pos, radius, _id):
         self.pos = pos
         self.radius = radius
-        self.id = id
+        self.id = _id
 
     def draw(self, win):
         pygame.draw.circle(win, (255, 255, 255, 127), self.pos, self.radius, 2)
@@ -71,10 +71,14 @@ class RaceTrack:
             for cp in self.checkpoints:
                 cp.draw(win)
 
+    def get_mask(self):
+        _mask = pygame.mask.from_surface(self.img)
+        _mask.invert()
+        return _mask
+
     def collide(self, car):
         car_mask = car.get_mask()
-        track_mask = pygame.mask.from_surface(self.img)
-        track_mask.invert()
+        track_mask = self.get_mask()
 
         car_x, car_y = car.pos
 
