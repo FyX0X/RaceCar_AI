@@ -105,9 +105,10 @@ class Car:
         self.length = 0.5
 
         self.img = img
+        """
         self.rotated_img = pygame.transform.rotate(self.img, self.rotation)
         self.img_rect = self.rotated_img.get_rect(center=self.pos)          # set coordinate origin in center
-
+        """
         self.throttle = 0       # accelerating from -1 to 1
         self.steering_angle = 0       # turning from -40 to 40
 
@@ -137,23 +138,34 @@ class Car:
         for ray in self.rays:
             ray.update(self.pos, self.rotation)
 
+    def get_rect(self):
+        # Rotate car
+        rotated_img = pygame.transform.rotate(self.img, self.rotation)
+        img_rect = rotated_img.get_rect(center=self.pos)          # set coordinate origin in center
+        return img_rect
+
+    def get_rotated_img(self):
+        # Rotate car
+        rotated_img = pygame.transform.rotate(self.img, self.rotation)
+        return rotated_img
+
     def update_timer(self):
         if not self.won and not self.is_dead:
             self.timer = pygame.time.get_ticks() - self.born_time
 
-    def draw(self, win):
+    def draw(self, win, show_rays=False):
         # Rotate car
-        self.rotated_img = pygame.transform.rotate(self.img, self.rotation)
-        self.img_rect = self.rotated_img.get_rect(center=self.pos)          # set coordinate origin in center
+        rotated_img = self.get_rotated_img()
+        img_rect = self.get_rect()
 
-        win.blit(self.rotated_img, self.img_rect)     # draw car
+        win.blit(rotated_img, img_rect)     # draw car
 
-        if self.show_rays:
+        if self.show_rays or show_rays:
             for ray in self.rays:
                 ray.draw(win)
 
     def get_mask(self):
-        return pygame.mask.from_surface(self.rotated_img)
+        return pygame.mask.from_surface(self.get_rotated_img())
 
     def move(self, throttle, steering, delta_time, tick):
         self.throttle = abs(throttle)
@@ -194,13 +206,13 @@ class Car:
             if throttle > 0:
                 self.accelerating()
             elif throttle < 0:
-                print(f"{tick}: flip")
+                # print(f"{tick}: flip")
                 self.reverse = True
                 self.direction_vector *= -1
                 self.accelerating()         # change with new, backward()
 
         self.update_physics()
-        print(f"{tick}: vel= {self.vel}, dir_v= {self.direction_vector}, angle: {self.rotation}, reverse= {self.reverse}")
+        # print(f"{tick}: vel= {self.vel}, dir_v= {self.direction_vector}, angle: {self.rotation}, reverse= {self.reverse}")
 
         """
         # calculate velocity
@@ -273,7 +285,7 @@ class Car:
         return math.sqrt(velocity[0] ** 2 + velocity[1] ** 2)  # scalar speed
 
     def accelerating(self):
-        print("accelerating")
+        # print("accelerating")
         traction_force = self.engine_max_force * self.throttle * self.direction_vector
         friction_force = -self.friction_coefficient * self.vel
         drag_force = -self.drag_coefficient * self.vel * self.speed
@@ -290,7 +302,7 @@ class Car:
         # self.update_vel(acceleration)
 
     def braking(self):
-        print("braking")
+        # print("braking")
         braking_force = - self.engine_max_force * self.throttle * self.direction_vector   # -throttle < 0
         friction_force = -self.friction_coefficient * self.vel
         drag_force = -self.drag_coefficient * self.vel * self.speed
@@ -321,9 +333,9 @@ class Car:
         self.pos += self.vel * self.delta_time
 
     def stop(self):
-        print("stop")
+        # print("stop")
         self.vel = np.zeros(2)              # set velocity to 0
         if self.reverse:                    # if reversed:
-            print("reverse => flip")
+            # print("reverse => flip")
             self.direction_vector *= -1      # -> flips direction vector
         self.reverse = False                # set reverse to false

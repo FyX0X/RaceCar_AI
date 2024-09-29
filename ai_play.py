@@ -6,8 +6,14 @@ import math
 import keyboard
 import car_class
 import race_track
+import pickle
 from race_track import TrackFile
 from race_track import CheckPoint
+import NNetworkDisplay
+
+import neat
+
+PATH_TO_OPEN = "GENOMES/Racer_time_cap_p150_gen_80.pickle"
 
 
 pygame.init()
@@ -23,10 +29,12 @@ TEXT_FONT = pygame.font.SysFont("comicsan", 20)
     # green color = rgba(34,177,76,255)
 
 
-def draw_window(win, car, track, fps, show_mask=False):
+def draw_window(win, car, track, fps, show_mask=False, show_rays=False, genome=None):
     track.draw(win)        # draw background
 
-    car.draw(win)     # draw car
+    # car.draw(win)     # draw car
+    # draw all car in list
+    car.draw(win, show_rays)
 
     fps_text = TEXT_FONT.render(f"FPS: {round(fps)}", 1, (255, 255, 255))
     win.blit(fps_text, (WIN_WIDTH - fps_text.get_width() - 10, 10))
@@ -42,10 +50,10 @@ def draw_window(win, car, track, fps, show_mask=False):
     win.blit(lap_text, (10, 40))
 
     if show_mask:
-        car_mask = car.get_mask()
         track_mask = pygame.mask.from_surface(track.img)
         track_mask.invert()
-        x, y, w, h = car.img_rect
+        car_mask = car.get_mask()
+        x, y, w, h = car.get_rect()
         track_mask.draw(car_mask, (x, y))
         mask_img = track_mask.to_surface()
         win.blit(mask_img, (0, 0))
@@ -73,29 +81,49 @@ def draw_window(win, car, track, fps, show_mask=False):
         won_screen.fill((0, 0, 0))
         won_screen.set_alpha(160)
         win.blit(won_screen, (0, 0))
+
+
+    # DRAW Neural Network
+    white_bg = pygame.Surface((WIN_WIDTH//2, WIN_HEIGHT))
+    white_bg.fill((255, 255, 255))
+    win.blit(white_bg, (WIN_WIDTH, 0))
+
+    # NN TITLE
+    NNdisplay_text = TEXT_FONT.render("Neural Network: ", 1, (0, 0, 0))
+    win.blit(NNdisplay_text, (WIN_WIDTH + 10, 10))
+
+    # SCHEMA
+    net_size = (WIN_WIDTH//2 - 20, WIN_HEIGHT - 20 - NNdisplay_text.get_height())
+    net_pos = (WIN_WIDTH + 10, 10 + NNdisplay_text.get_height())
+
+    layers, weighted_connections = NNetworkDisplay.load_network(config, genome)
+
+    NNetworkDisplay.draw_network(win, layers, weighted_connections, net_size, net_pos)
+
     pygame.display.update()
 
 
 # changement
-def main():
+def main(genome, config):
+
     # initiate pygame window
-    win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
+    win = pygame.display.set_mode((int(WIN_WIDTH * 1.5), WIN_HEIGHT))
     clock = pygame.time.Clock()
 
+    net = neat.nn.FeedForwardNetwork.create(genome, config)
     # track = race_track.RaceTrack(os.path.join("imgs", "race_track.png"),(34, 177, 76),  (WIN_WIDTH, WIN_HEIGHT))
     track = race_track.RaceTrack.load_from_track_file(os.path.join("track_1.pickle"))
     car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
 
-    """
-    for i in range(8):
-        vector = np.around(car.get_direction_vector_from_rotation(i*45), 2)
-
-        print(f"angle: {i*45} => vector: {vector}")"""
-
     run = True
     while run:
-        # 30 FPS
-        delta_time = clock.tick(MAX_FPS) / 1000
+
+        # 60 FPS
+        delta_time = clock.tick(10) / 1000
+
+        # delta_time = min(delta_time, 0.1)    # arbitrary, to not make physics engine crash => dt is in [0.05;0.1]
+        # delta_time = max(0.05, delta_time)
+
 
         # Check user input
         for event in pygame.event.get():
@@ -103,40 +131,61 @@ def main():
                 run = False
                 pygame.quit()
                 quit()
-        throttle = 0
-        steering = 0
-        show_mask = False
-        car.show_rays = False
-        track.show_checkpoints = False
-        if keyboard.is_pressed("z") and not keyboard.is_pressed("s"):
-            throttle = 1
-        elif keyboard.is_pressed("s") and not keyboard.is_pressed("z"):
-            throttle = -1
-        if keyboard.is_pressed("q") and not keyboard.is_pressed("d"):
-            steering = 1
-        elif keyboard.is_pressed("d") and not keyboard.is_pressed("q"):
-            steering = -1
-        if car.is_dead and keyboard.is_pressed("enter"):
-            car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
-        if car.won and keyboard.is_pressed("enter"):
-            car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
 
+        show_mask = False
+        show_rays = False
+        track.show_checkpoints = False
+        save = False
+
+        best_genome = None
+        best_car = None
+
+        # visual only
         if keyboard.is_pressed("m"):
             show_mask = True
         if keyboard.is_pressed("p"):
             track.show_checkpoints = True
         if keyboard.is_pressed("o"):
-            car.show_rays = True
+            show_rays = True
+        if keyboard.is_pressed("i"):
+            save = True
+        if car.is_dead and keyboard.is_pressed("enter"):
+            car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
+        if car.won and keyboard.is_pressed("enter"):
+            car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
 
+        # calculate car action
         if not car.is_dead and not car.won:
+            input_list = []
+            for ray in car.rays:
+                input_list.append(ray.measured_distance)
+            output = net.activate(input_list)            # output of type [throttle, steering]
+            throttle, steering = output
             car.move(throttle, steering, delta_time, pygame.time.get_ticks())
 
-        if track.collide(car)[0]:
+        # check for wall collision
+        if track.collide(car)[0]:       # track.collide() return list => [collision: bool, fitness: float]
             car.is_dead = True
 
         car.update_car()
+
         # draw window
-        draw_window(win, car, track, clock.get_fps(), show_mask)
+        draw_window(win, car, track, clock.get_fps(), show_mask, show_rays, genome)
 
 
-main()
+
+
+
+
+if __name__ == "__main__":
+
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir, "config_neat.txt")
+
+    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet,
+                                neat.DefaultStagnation, config_path)
+
+    with open(PATH_TO_OPEN, "rb") as file:
+        ai_controller = pickle.load(file)
+
+    main(ai_controller, config)

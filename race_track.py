@@ -35,7 +35,7 @@ class TrackFile:
 
 
 class RaceTrack:
-    NUMBER_OF_WINNING_LAP = 1
+    NUMBER_OF_WINNING_LAP = 10
 
     def __init__(self, img_path, bg_color, size, cp_list=[]):
         self.checkpoints = cp_list
@@ -77,21 +77,29 @@ class RaceTrack:
         return _mask
 
     def collide(self, car):
+        to_return = [False, 0]
         car_mask = car.get_mask()
         track_mask = self.get_mask()
 
         car_x, car_y = car.pos
 
-        cp_nb = car.distance%len(self.checkpoints)
-        next_cp = self.checkpoints[cp_nb]
-        cp_x, cp_y = next_cp.pos
-        dist_with_cp = math.sqrt((car_x - cp_x) ** 2 + (car_y - cp_y) ** 2)
-        if dist_with_cp <= next_cp.radius:
-            car.distance += 1
-            if cp_nb == 0:
-                car.lap += 1
-                if car.lap > self.NUMBER_OF_WINNING_LAP:
-                    car.won = True
+        checking_cp = True
+        while checking_cp:
+            cp_nb = car.distance%len(self.checkpoints)
+            next_cp = self.checkpoints[cp_nb]
+            cp_x, cp_y = next_cp.pos
+            dist_with_cp = math.sqrt((car_x - cp_x) ** 2 + (car_y - cp_y) ** 2)
+            checking_cp = False
+            if dist_with_cp <= next_cp.radius:
+                car.distance += 1
+                checking_cp = True          # continue to check next cp
+                to_return[1] += 1        # only for neat algorithm
+                if cp_nb == 0:
+                    car.lap += 1
+                    to_return[1] += 10
+                    if car.lap > self.NUMBER_OF_WINNING_LAP:
+                        car.won = True
+
 
         """
         for cp in self.checkpoints:
@@ -105,15 +113,15 @@ class RaceTrack:
 
                     car.won = True"""
 
-
-        x, y, w, h = car.img_rect
+        x, y, w, h = car.get_rect()
         overlap_point = track_mask.overlap(car_mask, (x, y))
 
         # track_mask.draw(car_mask, (x, y))
         # mask_img = track_mask.to_surface()
         if overlap_point:
-            return True
-        return False
+            to_return[0] = True
+            return to_return
+        return to_return
 
 
 class TrackMaker:
