@@ -13,7 +13,7 @@ import NNetworkDisplay
 
 import neat
 
-PATH_TO_OPEN = "GENOMES/Racer_time_cap_p150_gen_80.pickle"
+PATH_TO_OPEN = "GENOMES/INPUT_6/speed_gen600_WINNER.pickle"
 
 
 pygame.init()
@@ -113,13 +113,13 @@ def main(genome, config):
     net = neat.nn.FeedForwardNetwork.create(genome, config)
     # track = race_track.RaceTrack(os.path.join("imgs", "race_track.png"),(34, 177, 76),  (WIN_WIDTH, WIN_HEIGHT))
     track = race_track.RaceTrack.load_from_track_file(os.path.join("track_1.pickle"))
-    car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
+    car = car_class.Car(track.start_pos, CAR_IMG, track.mask)
 
     run = True
     while run:
 
         # 60 FPS
-        delta_time = clock.tick(10) / 1000
+        delta_time = clock.tick(60) / 1000
 
         # delta_time = min(delta_time, 0.1)    # arbitrary, to not make physics engine crash => dt is in [0.05;0.1]
         # delta_time = max(0.05, delta_time)
@@ -150,21 +150,21 @@ def main(genome, config):
         if keyboard.is_pressed("i"):
             save = True
         if car.is_dead and keyboard.is_pressed("enter"):
-            car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
+            car = car_class.Car(track.start_pos, CAR_IMG, track.mask)
         if car.won and keyboard.is_pressed("enter"):
-            car = car_class.Car(track.start_pos, CAR_IMG, track.get_mask())
+            car = car_class.Car(track.start_pos, CAR_IMG, track.mask)
 
         # calculate car action
         if not car.is_dead and not car.won:
-            input_list = []
+            input_list = [car.speed]
             for ray in car.rays:
                 input_list.append(ray.measured_distance)
             output = net.activate(input_list)            # output of type [throttle, steering]
             throttle, steering = output
-            car.move(throttle, steering, delta_time, pygame.time.get_ticks())
+            car.move(throttle, steering, delta_time)
 
         # check for wall collision
-        if track.collide(car)[0]:       # track.collide() return list => [collision: bool, fitness: float]
+        if track.collide(car):
             car.is_dead = True
 
         car.update_car()

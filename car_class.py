@@ -7,6 +7,8 @@ import math
 
 class DetectingRay:
 
+    track_mask = None
+
     def __init__(self, delta_angle, length, track_mask):
         self.delta_angle = delta_angle
         self.length = length
@@ -21,7 +23,8 @@ class DetectingRay:
         self.line_surface = self.line_surface.convert_alpha()
         self.line_surface.fill((0, 0, 0, 0))
 
-        self.track_mask = track_mask
+        if self.track_mask is None:
+            self.track_mask = track_mask
 
         self.measured_distance = 0
         self.collision_pos = (0, 0)
@@ -167,7 +170,7 @@ class Car:
     def get_mask(self):
         return pygame.mask.from_surface(self.get_rotated_img())
 
-    def move(self, throttle, steering, delta_time, tick):
+    def move(self, throttle, steering, delta_time):
         self.throttle = abs(throttle)
         max_steering_angle = self.get_max_steering_angle()                 # max angle decreases with speed
         self.steering_angle = math.radians(steering * max_steering_angle)   # max angle = (1 * 60)° if speed is low

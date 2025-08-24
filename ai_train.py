@@ -11,7 +11,6 @@ from race_track import TrackFile
 from race_track import CheckPoint
 
 import neat
-import multiprocessing
 
 
 pygame.init()
@@ -27,18 +26,31 @@ TEXT_FONT = pygame.font.SysFont("comicsan", 20)
     # green color = rgba(34,177,76,255)
 
 # AI STUFF
-gen = -1
+gen = 0
 TIME_PENALTY = 2
 DISTANCE_BONUS_COEFFICIANT = 10
 DEATH_PENALTY = 5
 
 # OPTION
-MAX_GEN = 400
+MAX_GEN = 600
 SHOW_GRAPHICS = False
 START_ITERATION = 100
-ITERATION_FACTOR = 10
+ITERATION_FACTOR = 20
 
-LABEL = "tc_60_p150"
+USE_SPEED_FITNESS = True
+
+LABEL = "speed"
+DIRECTORY = "GENOMES/INPUT_6"
+
+
+def save_genome(genome, winner=False):
+    print("SAVING a genome")
+    if winner:
+        with open(f"{DIRECTORY}/{LABEL}_gen{gen}_WINNER.pickle", "wb") as file:
+            pickle.dump(genome, file)
+    else:
+        with open(f"{DIRECTORY}/{LABEL}_gen{gen}.pickle", "wb") as file:
+            pickle.dump(genome, file)
 
 
 def draw_window(win, cars_list, track, fps, show_mask=False, show_rays=False):
@@ -77,6 +89,7 @@ def draw_window(win, cars_list, track, fps, show_mask=False, show_rays=False):
             track_mask.draw(car_mask, (x, y))
         mask_img = track_mask.to_surface()
         win.blit(mask_img, (0, 0))
+
 
     """
     if car.is_dead:
@@ -128,9 +141,13 @@ def main(genomes, config):          # same as: def eval_genomes():
     for _, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
-        cars.append(car_class.Car(track.start_pos, CAR_IMG, track.get_mask()))
+        cars.append(car_class.Car(track.start_pos, CAR_IMG, track.mask))
         g.fitness = 0
         ge.append(g)
+
+    best_genome = None
+    best_car = None
+    best_distance = 0
 
     run = True
     while run:
@@ -139,9 +156,8 @@ def main(genomes, config):          # same as: def eval_genomes():
             run = False
             break
 
-
         # 60 FPS
-        delta_time = clock.tick(MAX_FPS*10) / 1000
+        # delta_time = clock.tick(MAX_FPS*100) / 1000
 
         # delta_time = min(delta_time, 0.1)    # arbitrary, to not make physics engine crash => dt is in [0.05;0.1]
         # delta_time = max(0.05, delta_time)
@@ -162,9 +178,6 @@ def main(genomes, config):          # same as: def eval_genomes():
         track.show_checkpoints = False
         save = False
 
-        best_genome = None
-        best_car = None
-
         # visual only
         if keyboard.is_pressed("m"):
             show_mask = True
@@ -177,72 +190,63 @@ def main(genomes, config):          # same as: def eval_genomes():
 
         cars_to_delete = []
 
-        best_distance = 0
         for x, car in enumerate(cars):
-
             # find current best_car
             if car.distance > best_distance:
                 best_genome = ge[x]
                 best_car = car
                 best_distance = car.distance
 
-
-            # ge[x].fitness -= TIME_PENALTY       # penalty for being slow
-
             # calculate car action
-            input_list = []
+            input_list = [car.speed]
             for ray in car.rays:
                 input_list.append(ray.measured_distance)
             output = nets[x].activate(input_list)            # output of type [throttle, steering]
             throttle, steering = output
-            car.move(throttle, steering, delta_time, pygame.time.get_ticks())
-            # ge[x].fitness += track.collide(car)[1] * DISTANCE_BONUS_COEFFICIANT
+            car.move(throttle, steering, delta_time)
 
             # check for wall collision
-            if track.collide(car)[0]:       # track.collide() return list => [collision: bool, fitness: float]
+            if track.collide(car):
                 car.is_dead = True
                 cars_to_delete.append(car)
-                # ge[x].fitness -= DEATH_PENALTY         # penalty for dying
 
             # remove slow cars to improve perf
-            if car.distance < best_distance/3 - 10:
+            if car.distance < best_distance*0.75 - 5:
                 cars_to_delete.append(car)
 
             car.update_car()
 
-        """
-        if not car.is_dead and not car.won:
-            car.move(throttle, steering, delta_time, pygame.time.get_ticks())"""
 
         # END AFTER CERTAIN DELAY
-        if len(cars) > 0:       # max time increases with gen (mx+p) ; caps out after certain number of gen (50)
-            if physics_iteration >= min(START_ITERATION + ITERATION_FACTOR * gen, START_ITERATION + ITERATION_FACTOR*70):
+        if len(cars) > 0:       # max time increases with gen (mx+p) ; caps out after certain number of gen (45)
+            if physics_iteration >= min(START_ITERATION + ITERATION_FACTOR * gen, START_ITERATION + ITERATION_FACTOR*45):
                 for x, car in enumerate(cars):
                     cars_to_delete.append(car)
 
         # remove cars to delete
+        tick = pygame.time.get_ticks()
         for dead_car in cars_to_delete:
             for car in cars:
                 if dead_car == car:
                     x = cars.index(car)
-                    ge[x].fitness = car.distance
+
+                    ge[x].fitness = car.distance + car.distance/tick
                     cars.pop(x)
                     nets.pop(x)
                     ge.pop(x)
 
         # saves genome manually
         if save and best_genome is not None:
-            print("SAVING a genome")
-            with open(f"GENOMES/_Racer_{LABEL}_gen{gen}.pickle", "wb") as file:
-                pickle.dump(best_genome, file)
-        # automatic save
-        if best_car is not None and gen % 10 == 0:                  # saves every ten gen
-            with open(f"GENOMES/Racer_{LABEL}_gen_{gen}.pickle", "wb") as file:
-                pickle.dump(best_genome, file)
+            save_genome(best_genome)
 
         # draw window
         if SHOW_GRAPHICS:
             draw_window(win, cars, track, clock.get_fps(), show_mask, show_rays)
+
+    # automatic save
+    if best_car is not None and gen % 10 == 0:  # saves every ten gen
+        save_genome(best_genome)
+
 
 
 def run(_config):
@@ -255,8 +259,7 @@ def run(_config):
 
     winner = pop.run(main, MAX_GEN)
 
-    with open(f"GENOMES/Winner_{LABEL}", "wb") as file:
-        pickle.dump(winner, file)
+    save_genome(winner, winner=True)
 
 
 if __name__ == "__main__":

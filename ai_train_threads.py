@@ -36,7 +36,7 @@ DEATH_PENALTY = 5
 MAX_GEN = 400
 SHOW_GRAPHICS = False
 START_ITERATION = 100
-ITERATION_FACTOR = 20
+ITERATION_FACTOR = 10
 
 LABEL = "tc_60_p150"
 
@@ -143,7 +143,7 @@ def main(genome, config):          # same as: def eval_genomes():
                 pygame.quit()
                 quit()
 
-        """
+
         show_mask = False
         show_rays = False
         track.show_checkpoints = False
@@ -158,7 +158,7 @@ def main(genome, config):          # same as: def eval_genomes():
             show_rays = True
         if keyboard.is_pressed("i"):
             save = True
-        """
+
 
         # calculate car action
         input_list = []
@@ -173,24 +173,30 @@ def main(genome, config):          # same as: def eval_genomes():
             car.is_dead = True
             genome.fitness = car.distance
             return genome.fitness
+            # ge[x].fitness -= DEATH_PENALTY         # penalty for dying
 
         car.update_car()
 
         # END AFTER CERTAIN DELAY
-        # max time increases with gen (mx+p) ; caps out after certain number of gen (35)
-        if physics_iteration >= min(START_ITERATION + ITERATION_FACTOR * gen, START_ITERATION + ITERATION_FACTOR*35):
+        # max time increases with gen (mx+p) ; caps out after certain number of gen (50)
+        if physics_iteration >= min(START_ITERATION + ITERATION_FACTOR * gen, START_ITERATION + ITERATION_FACTOR*70):
             car.is_dead = True
             genome.fitness = car.distance
             return car.distance
 
+        # saves genome manually
+        if save:
+            print("SAVING a genome")
+            with open(f"GENOMES/PARALLEL/_Racer_{LABEL}_gen{gen}.pickle", "wb") as file:
+                pickle.dump(genome, file)
         # automatic save
-        if gen % 10 == 0:                  # saves every ten gens
+        if gen % 10 == 0:                  # saves every ten gen
             with open(f"GENOMES/PARALLEL/Racer_{LABEL}_gen_{gen}.pickle", "wb") as file:
                 pickle.dump(genome, file)
-"""
+
         # draw window
         if SHOW_GRAPHICS:
-            draw_window(win, car, track, clock.get_fps(), False, False)"""
+            draw_window(win, car, track, clock.get_fps(), show_mask, show_rays)
 
 
 
@@ -206,8 +212,9 @@ def run(_config):
 
     # use parallel
 
-    pe = neat.parallel.ParallelEvaluator(multiprocessing.cpu_count(), main, None)
-    winner = pop.run(pe.evaluate, 500)
+    te = neat.ThreadedEvaluator(4, main)
+    winner = pop.run(te.evaluate, 500)
+    te.stop()
 
     with open(f"GENOMES/PARALLEL/Winner_{LABEL}", "wb") as file:
         pickle.dump(winner, file)

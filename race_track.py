@@ -49,6 +49,10 @@ class RaceTrack:
         self.bg = pygame.Surface(size)
         self.bg.fill(bg_color)
 
+        _mask = pygame.mask.from_surface(self.img)
+        _mask.invert()
+        self.mask = _mask
+
     @staticmethod
     def load_from_track_file(file_path):
         with open(file_path, "rb") as file:
@@ -71,17 +75,14 @@ class RaceTrack:
             for cp in self.checkpoints:
                 cp.draw(win)
 
-    def get_mask(self):
-        _mask = pygame.mask.from_surface(self.img)
-        _mask.invert()
-        return _mask
-
     def collide(self, car):
-        to_return = [False, 0]
+
         car_mask = car.get_mask()
-        track_mask = self.get_mask()
+        track_mask = self.mask
 
         car_x, car_y = car.pos
+
+
 
         checking_cp = True
         while checking_cp:
@@ -93,10 +94,8 @@ class RaceTrack:
             if dist_with_cp <= next_cp.radius:
                 car.distance += 1
                 checking_cp = True          # continue to check next cp
-                to_return[1] += 1        # only for neat algorithm
                 if cp_nb == 0:
                     car.lap += 1
-                    to_return[1] += 10
                     if car.lap > self.NUMBER_OF_WINNING_LAP:
                         car.won = True
 
@@ -118,10 +117,10 @@ class RaceTrack:
 
         # track_mask.draw(car_mask, (x, y))
         # mask_img = track_mask.to_surface()
+
         if overlap_point:
-            to_return[0] = True
-            return to_return
-        return to_return
+            return True
+        return False
 
 
 class TrackMaker:
