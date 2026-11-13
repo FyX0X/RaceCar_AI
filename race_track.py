@@ -1,4 +1,5 @@
 import math
+import sys
 import time
 
 import pygame
@@ -57,6 +58,10 @@ class RaceTrack:
     def load_from_track_file(file_path):
         with open(file_path, "rb") as file:
             track_file = pickle.load(file)
+
+        if not sys.platform.startswith('win32'):
+            track_file.img_path = track_file.img_path.replace("\\", "/")
+
         track = RaceTrack(track_file.img_path, track_file.bg_color, track_file.size, track_file.checkpoints)
         track.start_pos = track_file.checkpoints[0].pos
         return track

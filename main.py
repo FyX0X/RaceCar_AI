@@ -3,7 +3,6 @@ import pygame
 import os
 import numpy as np
 import math
-import keyboard
 import car_class
 import race_track
 from race_track import TrackFile
@@ -45,7 +44,7 @@ def draw_window(win, car, track, fps, show_mask=False):
         car_mask = car.get_mask()
         track_mask = pygame.mask.from_surface(track.img)
         track_mask.invert()
-        x, y, w, h = car.img_rect
+        x, y, w, h = car.get_rect()
         track_mask.draw(car_mask, (x, y))
         mask_img = track_mask.to_surface()
         win.blit(mask_img, (0, 0))
@@ -103,29 +102,32 @@ def main():
                 run = False
                 pygame.quit()
                 quit()
+
+        keys = pygame.key.get_pressed()
+
         throttle = 0
         steering = 0
         show_mask = False
         car.show_rays = False
         track.show_checkpoints = False
-        if keyboard.is_pressed("z") and not keyboard.is_pressed("s"):
+
+        if keys[pygame.K_z] and not keys[pygame.K_s]:
             throttle = 1
-        elif keyboard.is_pressed("s") and not keyboard.is_pressed("z"):
+        elif keys[pygame.K_s] and not keys[pygame.K_z]:
             throttle = -1
-        if keyboard.is_pressed("q") and not keyboard.is_pressed("d"):
+        if keys[pygame.K_q] and not keys[pygame.K_d]:
             steering = 1
-        elif keyboard.is_pressed("d") and not keyboard.is_pressed("q"):
+        elif keys[pygame.K_d] and not keys[pygame.K_q]:
             steering = -1
-        if car.is_dead and keyboard.is_pressed("enter"):
-            car = car_class.Car(track.start_pos, CAR_IMG, track.mask)
-        if car.won and keyboard.is_pressed("enter"):
+
+        if (car.is_dead or car.won) and keys[pygame.K_RETURN]:
             car = car_class.Car(track.start_pos, CAR_IMG, track.mask)
 
-        if keyboard.is_pressed("m"):
+        if keys[pygame.K_m]:
             show_mask = True
-        if keyboard.is_pressed("p"):
+        if keys[pygame.K_p]:
             track.show_checkpoints = True
-        if keyboard.is_pressed("o"):
+        if keys[pygame.K_o]:
             car.show_rays = True
 
         if not car.is_dead and not car.won:

@@ -90,7 +90,7 @@ Genomes are automatically saved in the `GENOMES/` folder every few generations.
 
 2. Install dependencies:
    ```bash
-   pip install pygame neat-python numpy keyboard
+   pip install pygame neat-python numpy
    ```
 
 3. Run a mode:
@@ -133,4 +133,3 @@ Genomes are automatically saved in the `GENOMES/` folder every few generations.
 - `pygame`  
 - `neat-python`  
 - `numpy`  
-- `keyboard`  

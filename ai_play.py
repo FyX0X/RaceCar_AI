@@ -3,7 +3,6 @@ import pygame
 import os
 import numpy as np
 import math
-import keyboard
 import car_class
 import race_track
 import pickle
@@ -13,7 +12,7 @@ import NNetworkDisplay
 
 import neat
 
-PATH_TO_OPEN = "GENOMES/INPUT_6/speed_gen600_WINNER.pickle"
+PATH_TO_OPEN = "Racer_AI.pickle"
 
 
 pygame.init()
@@ -139,19 +138,20 @@ def main(genome, config):
 
         best_genome = None
         best_car = None
+        keys = pygame.key.get_pressed()
 
         # visual only
-        if keyboard.is_pressed("m"):
+        if keys[pygame.K_m]:
             show_mask = True
-        if keyboard.is_pressed("p"):
+        if keys[pygame.K_p]:
             track.show_checkpoints = True
-        if keyboard.is_pressed("o"):
+        if keys[pygame.K_o]:
             show_rays = True
-        if keyboard.is_pressed("i"):
+        if keys[pygame.K_i]:
             save = True
-        if car.is_dead and keyboard.is_pressed("enter"):
+        if car.is_dead and keys[pygame.K_RETURN]:
             car = car_class.Car(track.start_pos, CAR_IMG, track.mask)
-        if car.won and keyboard.is_pressed("enter"):
+        if car.won and keys[pygame.K_RETURN]:
             car = car_class.Car(track.start_pos, CAR_IMG, track.mask)
 
         # calculate car action

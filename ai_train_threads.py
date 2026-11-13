@@ -3,7 +3,6 @@ import pygame
 import os
 import numpy as np
 import math
-import keyboard
 import car_class
 import race_track
 import pickle
@@ -148,15 +147,16 @@ def main(genome, config):          # same as: def eval_genomes():
         show_rays = False
         track.show_checkpoints = False
         save = False
+        keys = pygame.key.get_pressed()
 
         # visual only
-        if keyboard.is_pressed("m"):
+        if keys[pygame.K_m]:
             show_mask = True
-        if keyboard.is_pressed("p"):
+        if keys[pygame.K_p]:
             track.show_checkpoints = True
-        if keyboard.is_pressed("o"):
+        if keys[pygame.K_o]:
             show_rays = True
-        if keyboard.is_pressed("i"):
+        if keys[pygame.K_i]:
             save = True
 
 
